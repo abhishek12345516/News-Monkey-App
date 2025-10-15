@@ -1,0 +1,4 @@
+`https://newsapi.org/v2/top-headlines?country=${this.props.country}&category=${this.props.category}&apiKey=4ab672ff65954bf0af81c6f333e83c0f ${this.state.page + 1}&pageSize=${this.props.pageSize}`;
+`https://newsapi.org/v2/top-headlines?country=${this.props.country}&category=${this.props.category}&apiKey=4ab672ff65954bf0af81c6f333e83c0f ${this.state.page - 1}&pageSize=${this.props.pageSize}`;
+    this.setState({ loading: true });
+    `https://newsapi.org/v2/top-headlines?country=${this.props.country}&category=${this.props.category}&apiKey=4ab672ff65954bf0af81c6f333e83c0f ${this.state.page - 1}&pageSize=${this.props.pageSize}`;
