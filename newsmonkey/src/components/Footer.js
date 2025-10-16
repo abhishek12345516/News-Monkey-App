@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 
-const Footer = ({ theme, toggleTheme }) => {
+const Footer = ({ theme = "light", toggleTheme = () => {} }) => {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
   const [location, setLocation] = useState("Detecting location...");
 
-  // Scroll to top functionality
+  // Scroll to top
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Newsletter subscription
+  // ✅ Newsletter subscription
   const handleSubscribe = (e) => {
     e.preventDefault();
     if (!email.includes("@") || email.length < 5) {
@@ -24,7 +24,7 @@ const Footer = ({ theme, toggleTheme }) => {
     setTimeout(() => setMessage(""), 4000);
   };
 
-  // Update timestamp every minute
+  // ✅ Update timestamp every minute
   useEffect(() => {
     const updateTimestamp = () => {
       const now = new Date();
@@ -35,37 +35,43 @@ const Footer = ({ theme, toggleTheme }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // Get user location
-  useEffect(() => {
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          try {
-            const { latitude, longitude } = pos.coords;
-            const res = await fetch(
-              `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
-            );
-            const data = await res.json();
-            const city =
-              data.address.city ||
-              data.address.town ||
-              data.address.village ||
-              "Unknown City";
-            const country = data.address.country || "Unknown Country";
-            setLocation(`${city}, ${country}`);
-          } catch {
-            setLocation("Unable to fetch location details.");
-          }
-        },
-        (error) => {
-          if (error.code === 1) setLocation("Location access denied.");
-          else setLocation("Unable to retrieve location.");
-        }
+  // ✅ Get user location (with safety & fallback)
+  const fetchLocation = useCallback(async (latitude, longitude) => {
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
       );
-    } else {
-      setLocation("Geolocation not supported on this browser.");
+      const data = await res.json();
+      const city =
+        data.address?.city ||
+        data.address?.town ||
+        data.address?.village ||
+        "Unknown City";
+      const country = data.address?.country || "Unknown Country";
+      setLocation(`${city}, ${country}`);
+    } catch (error) {
+      console.error("Location fetch error:", error);
+      setLocation("Unable to fetch location details.");
     }
   }, []);
+
+  useEffect(() => {
+    if (!("geolocation" in navigator)) {
+      setLocation("Geolocation not supported on this browser.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        fetchLocation(latitude, longitude);
+      },
+      (error) => {
+        if (error.code === 1) setLocation("Location access denied.");
+        else setLocation("Unable to retrieve location.");
+      }
+    );
+  }, [fetchLocation]);
 
   const year = new Date().getFullYear();
 
@@ -78,7 +84,7 @@ const Footer = ({ theme, toggleTheme }) => {
     >
       <div className="container">
         <div className="row text-center text-md-start">
-          {/* Column 1 - About + Theme */}
+          {/* 📰 Column 1 - About + Theme */}
           <div className="col-md-3 mb-3">
             <h5 className="fw-bold">📰 NewsMonkey</h5>
             <p style={{ color: theme === "dark" ? "#ddd" : "#6c757d" }}>
@@ -95,7 +101,7 @@ const Footer = ({ theme, toggleTheme }) => {
             </button>
           </div>
 
-          {/* Column 2 - Quick Links */}
+          {/* 🔗 Column 2 - Quick Links */}
           <div className="col-md-3 mb-3">
             <h5 className="fw-bold">Quick Links</h5>
             <ul className="list-unstyled">
@@ -125,7 +131,7 @@ const Footer = ({ theme, toggleTheme }) => {
             </ul>
           </div>
 
-          {/* Column 3 - Newsletter */}
+          {/* ✉️ Column 3 - Newsletter */}
           <div className="col-md-3 mb-3">
             <h5 className="fw-bold">Subscribe</h5>
             <p style={{ color: theme === "dark" ? "#ccc" : "#6c757d" }}>
@@ -157,53 +163,30 @@ const Footer = ({ theme, toggleTheme }) => {
             </form>
           </div>
 
-          {/* Column 4 - Social + Location + Back to Top */}
+          {/* 🌐 Column 4 - Social + Location + Back to Top */}
           <div className="col-md-3 mb-3 text-md-end text-center">
             <h5 className="fw-bold">Connect</h5>
             <div className="d-flex justify-content-center justify-content-md-end gap-3 mb-3 fs-5">
-              <a
-                href="https://twitter.com"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Twitter"
-                className="text-reset"
-                style={{ color: theme === "dark" ? "#ddd" : "inherit" }}
-              >
-                <i className="bi bi-twitter"></i>
-              </a>
-              <a
-                href="https://facebook.com"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Facebook"
-                className="text-reset"
-                style={{ color: theme === "dark" ? "#ddd" : "inherit" }}
-              >
-                <i className="bi bi-facebook"></i>
-              </a>
-              <a
-                href="https://instagram.com"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Instagram"
-                className="text-reset"
-                style={{ color: theme === "dark" ? "#ddd" : "inherit" }}
-              >
-                <i className="bi bi-instagram"></i>
-              </a>
-              <a
-                href="https://linkedin.com"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="LinkedIn"
-                className="text-reset"
-                style={{ color: theme === "dark" ? "#ddd" : "inherit" }}
-              >
-                <i className="bi bi-linkedin"></i>
-              </a>
+              {[
+                ["twitter", "https://twitter.com"],
+                ["facebook", "https://facebook.com"],
+                ["instagram", "https://instagram.com"],
+                ["linkedin", "https://linkedin.com"],
+              ].map(([name, url]) => (
+                <a
+                  key={name}
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={name}
+                  className="text-reset"
+                  style={{ color: theme === "dark" ? "#ddd" : "inherit" }}
+                >
+                  <i className={`bi bi-${name}`}></i>
+                </a>
+              ))}
             </div>
 
-            {/* Location */}
             <p
               className="small mb-1"
               style={{ color: theme === "dark" ? "#bbb" : "#6c757d" }}
@@ -211,7 +194,6 @@ const Footer = ({ theme, toggleTheme }) => {
               <i className="bi bi-geo-alt"></i> {location}
             </p>
 
-            {/* Back to Top */}
             <button
               className="btn btn-outline-primary btn-sm rounded-pill"
               onClick={scrollToTop}
@@ -222,7 +204,9 @@ const Footer = ({ theme, toggleTheme }) => {
         </div>
 
         <hr
-          className={theme === "dark" ? "border-light mt-4" : "border-secondary mt-4"}
+          className={
+            theme === "dark" ? "border-light mt-4" : "border-secondary mt-4"
+          }
         />
 
         <p
@@ -237,3 +221,4 @@ const Footer = ({ theme, toggleTheme }) => {
 };
 
 export default Footer;
+

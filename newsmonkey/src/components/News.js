@@ -1,143 +1,123 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import NewsItem from "./NewsItem";
 import Spinner from "./Spinner";
 import PropTypes from "prop-types";
 import InfiniteScroll from "react-infinite-scroll-component";
 
-const News = ({ country, pageSize, category, searchQuery, setProgress }) => {
-  const [articles, setArticles] = useState([]);
-  const [loading, setLoading] = useState(false);
+function News(props) {
+  const [articles, setArticles] = useState([]); // always start with empty array
+  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalResults, setTotalResults] = useState(0);
 
-  const apiKey = "8834f076fb2146599fe974bde3543034";
+  // capitalize category name for title
+  const capitalizeFirstLetter = (string) =>
+    string ? string.charAt(0).toUpperCase() + string.slice(1) : "";
 
-  const updateNews = useCallback(
-    async (pageNo = 1) => {
-      setProgress(10);
+  // main fetch function
+  const updateNews = async () => {
+    try {
+      props.setProgress(10);
+      const url = `https://newsapi.org/v2/top-headlines?country=${props.country}&category=${props.category}&apiKey=8834f076fb2146599fe974bde3543034&page=${page}&pageSize=${props.pageSize}`;
       setLoading(true);
+      let data = await fetch(url);
+      props.setProgress(40);
 
-      try {
-        const url = searchQuery
-          ? `https://newsapi.org/v2/everything?q=${encodeURIComponent(
-              searchQuery
-            )}&apiKey=${apiKey}&page=${pageNo}&pageSize=${pageSize}`
-          : `https://newsapi.org/v2/top-headlines?country=${country}&category=${category}&apiKey=${apiKey}&page=${pageNo}&pageSize=${pageSize}`;
+      let parsedData = await data.json();
+      props.setProgress(70);
 
-        const response = await fetch(url);
-        setProgress(30);
-
-        if (!response.ok) {
-          console.error("Error fetching news:", response.status, response.statusText);
-          setLoading(false);
-          return;
-        }
-
-        const parsedData = await response.json();
-        setProgress(70);
-
-        setArticles(parsedData.articles || []);
+      if (parsedData?.articles) {
+        setArticles(parsedData.articles);
         setTotalResults(parsedData.totalResults || 0);
-        setPage(pageNo);
-        setLoading(false);
-        setProgress(100);
-      } catch (error) {
-        console.error("Network or JSON error:", error);
-        setLoading(false);
+      } else {
+        console.warn("⚠️ No articles found or invalid response:", parsedData);
+        setArticles([]);
+        setTotalResults(0);
       }
-    },
-    [country, category, pageSize, searchQuery, setProgress]
-  );
+
+      setLoading(false);
+      props.setProgress(100);
+    } catch (error) {
+      console.error("❌ Error fetching news:", error);
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
+    document.title = `${capitalizeFirstLetter(props.category)} - NewsMonkey`;
     updateNews();
-  }, [updateNews]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  useEffect(() => {
-    setPage(1);
-    updateNews(1);
-  }, [searchQuery, updateNews]);
-
+  // Infinite Scroll Function
   const fetchMoreData = async () => {
     try {
       const nextPage = page + 1;
+      const url = `https://newsapi.org/v2/top-headlines?country=${props.country}&category=${props.category}&apiKey=8834f076fb2146599fe974bde3543034&page=${nextPage}&pageSize=${props.pageSize}`;
+      let data = await fetch(url);
+      let parsedData = await data.json();
 
-      const url = searchQuery
-        ? `https://newsapi.org/v2/everything?q=${encodeURIComponent(
-            searchQuery
-          )}&apiKey=${apiKey}&page=${nextPage}&pageSize=${pageSize}`
-        : `https://newsapi.org/v2/top-headlines?country=${country}&category=${category}&apiKey=${apiKey}&page=${nextPage}&pageSize=${pageSize}`;
-
-      const response = await fetch(url);
-      if (!response.ok) {
-        console.error("Error fetching more news:", response.status, response.statusText);
-        return;
-      }
-
-      const parsedData = await response.json();
-      setArticles((prevArticles) => prevArticles.concat(parsedData.articles || []));
-      setTotalResults(parsedData.totalResults || 0);
+      const newArticles = parsedData.articles || [];
+      setArticles((prevArticles) => prevArticles.concat(newArticles));
+      setTotalResults(parsedData.totalResults || totalResults);
       setPage(nextPage);
     } catch (error) {
-      console.error("Fetch more error:", error);
+      console.error("❌ Error fetching more news:", error);
     }
   };
 
   return (
     <div className="container my-3">
-      <h1 className="text-center mb-4">
-        {searchQuery
-          ? `NewsMonkey - Results for "${searchQuery}"`
-          : `NewsMonkey - Top ${
-              category.charAt(0).toUpperCase() + category.slice(1)
-            } Headlines`}
+      <h1
+        className="text-center"
+        style={{ margin: "35px 0px", marginTop: "70px" }}
+      >
+        NewsMonkey - Top {capitalizeFirstLetter(props.category)} Headlines
       </h1>
 
+      {loading && <Spinner />}
+
       <InfiniteScroll
-        dataLength={articles.length}
+        dataLength={articles?.length || 0}
         next={fetchMoreData}
-        hasMore={articles.length < totalResults}
+        hasMore={articles?.length < totalResults}
         loader={<Spinner />}
       >
         <div className="row">
-          {!loading && articles.length === 0 && (
-            <h5 className="text-center mt-3">No news found for this search.</h5>
-          )}
-
-          {articles.map((element, index) => (
-            <div className="col-md-4 my-3" key={`${element.url || "no-url"}-${index}`}>
-              <NewsItem
-                title={element.title || "No Title"}
-                description={element.description || "No Description Available"}
-                urlToImage={
-                  element.urlToImage || "https://via.placeholder.com/400x200?text=No+Image"
-                }
-                newsUrl={element.url}
-                author={element.author || "Unknown"}
-                date={element.publishedAt}
-                source={element.source?.name || "Unknown"}
-              />
-            </div>
-          ))}
+          {articles
+            ?.filter(Boolean)
+            .map((element, index) => (
+              <div className="col-md-4 my-3" key={element?.url || index}>
+                <NewsItem
+                  title={element?.title || "No Title Available"}
+                  description={element?.description || "No Description"}
+                  imageUrl={element?.urlToImage}
+                  newsUrl={element?.url}
+                  author={element?.author || "Unknown"}
+                  date={element?.publishedAt}
+                  source={element?.source?.name || "Unknown"}
+                />
+              </div>
+            ))}
         </div>
       </InfiniteScroll>
     </div>
   );
-};
+}
 
-// ✅ Default props & prop types
+// Default Props
 News.defaultProps = {
-  country: "in", // changed from "us" to "in" for India news
-  pageSize: 6,
+  country: "us",
+  pageSize: 8,
   category: "general",
 };
 
+// Prop Types Validation
 News.propTypes = {
   country: PropTypes.string,
   pageSize: PropTypes.number,
   category: PropTypes.string,
-  searchQuery: PropTypes.string,
-  setProgress: PropTypes.func.isRequired,
+  setProgress: PropTypes.func,
 };
 
 export default News;

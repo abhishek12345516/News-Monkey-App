@@ -1,91 +1,77 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import "bootstrap-icons/font/bootstrap-icons.css";
+import { NavLink, Link } from "react-router-dom";
 
 const Navbar = ({ theme, toggleTheme, onSearch }) => {
-  const [query, setQuery] = useState("");
+  const [searchText, setSearchText] = useState("");
 
-  const handleInputChange = (event) => {
-    setQuery(event.target.value);
+
+  const handleSearch = (e) => {
+    e.preventDefault(); // prevent page reload
+    onSearch(searchText);
   };
 
-  const handleSearch = (event) => {
-    event.preventDefault();
-    if (query.trim() === "") return;
-    onSearch(query);
-    setQuery("");
-  };
 
   return (
-    <nav
-      className={`navbar fixed-top navbar-expand-lg shadow-sm ${
-        theme === "dark" ? "navbar-dark bg-dark" : "navbar-light bg-light"
-      } sticky-top`}
-    >
-      <div className="container-fluid">
-        <Link className="navbar-brand d-flex align-items-center gap-2" to="/">
-          <span role="img" aria-label="monkey" style={{ fontSize: "1.5rem" }}>
-            🐒
-          </span>
-          <span className="fw-bold">NewsMonkey</span>
-        </Link>
+    <nav className={`navbar navbar-expand-lg fixed-top ${theme === "dark" ? "navbar-dark bg-dark" : "navbar-light bg-light"} shadow-sm`}>
+      <div className="container">
+        {/* Brand */}
+        <Link className="navbar-brand fw-bold" to="/">NewsApp</Link>
 
+        {/* Hamburger button for mobile */}
         <button
           className="navbar-toggler"
           type="button"
           data-bs-toggle="collapse"
-          data-bs-target="#navbarSupportedContent"
-          aria-controls="navbarSupportedContent"
+          data-bs-target="#navbarNav"
+          aria-controls="navbarNav"
           aria-expanded="false"
           aria-label="Toggle navigation"
         >
           <span className="navbar-toggler-icon"></span>
         </button>
 
-        <div className="collapse navbar-collapse" id="navbarSupportedContent">
+        {/* Navbar links */}
+        <div className="collapse navbar-collapse" id="navbarNav">
           <ul className="navbar-nav me-auto mb-2 mb-lg-0">
-            {[
-              ["Home", "/"],
-              ["Business", "/business"],
-              ["Entertainment", "/entertainment"],
-              ["General", "/general"],
-              ["Health", "/health"],
-              ["Science", "/science"],
-              ["Sports", "/sports"],
-              ["Technology", "/technology"],
-            ].map(([name, path]) => (
-              <li className="nav-item" key={path}>
-                <Link className="nav-link active" to={path}>
-                  {name}
-                </Link>
+            <li className="nav-item">
+              <NavLink to="/" className={({ isActive }) => "nav-link" + (isActive ? " active fw-bold" : "")}>
+                Home
+              </NavLink>
+            </li>
+            <li className="nav-item">
+              <NavLink to="/general" className={({ isActive }) => "nav-link" + (isActive ? " active fw-bold" : "")}>
+                General
+              </NavLink>
+            </li>
+            {["business", "entertainment", "health", "science", "sports", "technology"].map((cat) => (
+              <li className="nav-item" key={cat}>
+                <NavLink to={`/${cat}`} className={({ isActive }) => "nav-link" + (isActive ? " active fw-bold" : "")}>
+                  {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                </NavLink>
               </li>
             ))}
             <li className="nav-item">
-              <Link className="nav-link active" to="/auth">
-                Login / Sign Up
-              </Link>
+              <NavLink to="/auth" className={({ isActive }) => "nav-link" + (isActive ? " active fw-bold" : "")}>
+                Login
+              </NavLink>
             </li>
           </ul>
 
-          <form className="d-flex align-items-center gap-2" onSubmit={handleSearch}>
+          {/* Search + Theme toggle */}
+          <form className="d-flex" onSubmit={handleSearch}>
             <input
-              className="form-control"
+              className="form-control me-2"
               type="search"
-              placeholder="Search News..."
-              value={query}
-              onChange={handleInputChange}
+              placeholder="Search news..."
+              aria-label="Search"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
             />
-            <button className="btn btn-outline-success" type="submit">
+            <button type="submit" className={`btn me-2 ${theme === "dark" ? "btn-light" : "btn-dark"}`}>
               Search
             </button>
-
-            <button
-              type="button"
-              className={`btn ${theme === "dark" ? "btn-outline-light" : "btn-outline-dark"} ms-2`}
-              onClick={toggleTheme}
-              title={`Switch to ${theme === "dark" ? "Light" : "Dark"} Mode`}
-            >
-              <i className={`bi bi-${theme === "dark" ? "sun" : "moon"}`}></i>
+            <button type="button" className={`btn ${theme === "dark" ? "btn-light" : "btn-dark"}`} onClick={toggleTheme}>
+              {theme === "dark" ? "Light" : "Dark"}
             </button>
           </form>
         </div>

@@ -1,10 +1,15 @@
 import React from "react";
-import loading from "../Ajax-loader.gif";
 
 const Spinner = () => {
   return (
-    <div>
-      <img className="rounded mx-auto d-block" src={loading} alt="Loading" />
+    <div className="d-flex justify-content-center my-3">
+      <div
+        className="spinner-border text-primary"
+        role="status"
+        style={{ width: "3rem", height: "3rem" }}
+      >
+        <span className="visually-hidden">Loading...</span>
+      </div>
     </div>
   );
 };
