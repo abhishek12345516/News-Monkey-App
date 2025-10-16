@@ -1,91 +1,72 @@
-import React, { Component } from 'react';
-import NewsItem from './NewsItem';
-import Spinner from './Spinner';
-import PropTypes from 'prop-types';
+import React, { useState, useEffect, useCallback } from "react";
+import NewsItem from "./NewsItem";
+import Spinner from "./Spinner";
+import PropTypes from "prop-types";
 import InfiniteScroll from "react-infinite-scroll-component";
 
-export class News extends Component {
-  static defaultProps = {
-    country: 'us',
-    pageSize: 6,
-    category: 'general'
-  };
+const News = ({ country, pageSize, category, searchQuery, setProgress }) => {
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalResults, setTotalResults] = useState(0);
 
-  static propTypes = {
-    country: PropTypes.string,
-    pageSize: PropTypes.number,
-    category: PropTypes.string,
-    searchQuery: PropTypes.string
-  };
+  const apiKey = "8834f076fb2146599fe974bde3543034";
 
-  constructor(props) {
-    super(props);
-    this.state = {
-      articles: [],
-      loading: false,
-      page: 1,
-      totalResults: 0
-    };
-  }
+  const updateNews = useCallback(
+    async (pageNo = 1) => {
+      setProgress(10);
+      setLoading(true);
 
-  // ✅ Use your new API key and always HTTPS
-  apiKey = "8834f076fb2146599fe974bde3543034";
+      try {
+        const url = searchQuery
+          ? `https://newsapi.org/v2/everything?q=${encodeURIComponent(
+              searchQuery
+            )}&apiKey=${apiKey}&page=${pageNo}&pageSize=${pageSize}`
+          : `https://newsapi.org/v2/top-headlines?country=${country}&category=${category}&apiKey=${apiKey}&page=${pageNo}&pageSize=${pageSize}`;
 
-  async updateNews(pageNo = 1) {
-    this.props.setProgress(10);
-    try {
-      this.setState({ loading: true });
+        const response = await fetch(url);
+        setProgress(30);
 
-      const { country, category, pageSize, searchQuery } = this.props;
+        if (!response.ok) {
+          console.error("Error fetching news:", response.status, response.statusText);
+          setLoading(false);
+          return;
+        }
 
-      const url = searchQuery
-        ? `https://newsapi.org/v2/everything?q=${encodeURIComponent(searchQuery)}&apiKey=${this.apiKey}&page=${pageNo}&pageSize=${pageSize}`
-        : `https://newsapi.org/v2/top-headlines?country=${country}&category=${category}&apiKey=${this.apiKey}&page=${pageNo}&pageSize=${pageSize}`;
+        const parsedData = await response.json();
+        setProgress(70);
 
-      const response = await fetch(url);
-      this.props.setProgress(30);
-      if (!response.ok) {
-        console.error("Error fetching news:", response.status, response.statusText);
-        this.setState({ loading: false });
-        return;
+        setArticles(parsedData.articles || []);
+        setTotalResults(parsedData.totalResults || 0);
+        setPage(pageNo);
+        setLoading(false);
+        setProgress(100);
+      } catch (error) {
+        console.error("Network or JSON error:", error);
+        setLoading(false);
       }
+    },
+    [country, category, pageSize, searchQuery, setProgress]
+  );
 
-      const parsedData = await response.json();
-      console.log("Fetched Data:", parsedData);
-      this.props.setProgress(50);
+  useEffect(() => {
+    updateNews();
+  }, [updateNews]);
 
-      this.setState({
-        articles: parsedData.articles || [],
-        totalResults: parsedData.totalResults || 0,
-        loading: true,
-        page: pageNo
-      });
-      this.props.setProgress(100);
-    } catch (error) {
-      console.error("Network or JSON error:", error);
-      this.setState({ loading: false });
-    }
-  }
+  useEffect(() => {
+    setPage(1);
+    updateNews(1);
+  }, [searchQuery, updateNews]);
 
-  async componentDidMount() {
-    this.updateNews();
-  }
-
-  async componentDidUpdate(prevProps) {
-    if (prevProps.searchQuery !== this.props.searchQuery) {
-      this.setState({ page: 1 });
-      this.updateNews(1);
-    }
-  }
-
-  fetchMoreData = async () => {
+  const fetchMoreData = async () => {
     try {
-      const nextPage = this.state.page + 1;
-      const { country, category, pageSize, searchQuery } = this.props;
+      const nextPage = page + 1;
 
       const url = searchQuery
-        ? `https://newsapi.org/v2/everything?q=${encodeURIComponent(searchQuery)}&apiKey=${this.apiKey}&page=${nextPage}&pageSize=${pageSize}`
-        : `https://newsapi.org/v2/top-headlines?country=${country}&category=${category}&apiKey=${this.apiKey}&page=${nextPage}&pageSize=${pageSize}`;
+        ? `https://newsapi.org/v2/everything?q=${encodeURIComponent(
+            searchQuery
+          )}&apiKey=${apiKey}&page=${nextPage}&pageSize=${pageSize}`
+        : `https://newsapi.org/v2/top-headlines?country=${country}&category=${category}&apiKey=${apiKey}&page=${nextPage}&pageSize=${pageSize}`;
 
       const response = await fetch(url);
       if (!response.ok) {
@@ -94,56 +75,69 @@ export class News extends Component {
       }
 
       const parsedData = await response.json();
-      console.log("Fetched More Data:", parsedData);
-
-      this.setState({
-        articles: this.state.articles.concat(parsedData.articles || []),
-        totalResults: parsedData.totalResults || 0,
-        page: nextPage
-      });
+      setArticles((prevArticles) => prevArticles.concat(parsedData.articles || []));
+      setTotalResults(parsedData.totalResults || 0);
+      setPage(nextPage);
     } catch (error) {
       console.error("Fetch more error:", error);
     }
   };
 
-  render() {
-    return (
-      <div className='container my-3'>
-        <h1 className='text-center mb-4'>
-          {this.props.searchQuery
-            ? `NewsMonkey - Results for "${this.props.searchQuery}"`
-            : `NewsMonkey - Top ${this.props.category.charAt(0).toUpperCase() + this.props.category.slice(1)} Headlines`}
-        </h1>
-            {/* {this.state.loading && <Spinner />} */}
-        <InfiniteScroll
-          dataLength={this.state.articles.length}
-          next={this.fetchMoreData}
-          hasMore={this.state.articles.length < this.state.totalResults}
-          loader={<Spinner />}
-        >
-          <div className='row'>
-            {!this.state.loading && this.state.articles.length === 0 && (
-              <h5 className="text-center mt-3">No news found for this search.</h5>
-            )}
+  return (
+    <div className="container my-3">
+      <h1 className="text-center mb-4">
+        {searchQuery
+          ? `NewsMonkey - Results for "${searchQuery}"`
+          : `NewsMonkey - Top ${
+              category.charAt(0).toUpperCase() + category.slice(1)
+            } Headlines`}
+      </h1>
 
-            {this.state.articles.map((element, index) => (
-              <div className='col-md-4 my-3' key={`${element.url || 'no-url'}-${index}`}>
-                <NewsItem
-                  title={element.title || "No Title"}
-                  description={element.description || "No Description Available"}
-                  urlToImage={element.urlToImage || "https://via.placeholder.com/400x200?text=No+Image"}
-                  newsUrl={element.url}
-                  author={element.author || "Unknown"}
-                  date={element.publishedAt}
-                  source={element.source?.name || "Unknown"}
-                />
-              </div>
-            ))}
-          </div>
-        </InfiniteScroll>
-      </div>
-    );
-  }
-}
+      <InfiniteScroll
+        dataLength={articles.length}
+        next={fetchMoreData}
+        hasMore={articles.length < totalResults}
+        loader={<Spinner />}
+      >
+        <div className="row">
+          {!loading && articles.length === 0 && (
+            <h5 className="text-center mt-3">No news found for this search.</h5>
+          )}
+
+          {articles.map((element, index) => (
+            <div className="col-md-4 my-3" key={`${element.url || "no-url"}-${index}`}>
+              <NewsItem
+                title={element.title || "No Title"}
+                description={element.description || "No Description Available"}
+                urlToImage={
+                  element.urlToImage || "https://via.placeholder.com/400x200?text=No+Image"
+                }
+                newsUrl={element.url}
+                author={element.author || "Unknown"}
+                date={element.publishedAt}
+                source={element.source?.name || "Unknown"}
+              />
+            </div>
+          ))}
+        </div>
+      </InfiniteScroll>
+    </div>
+  );
+};
+
+// ✅ Default props & prop types
+News.defaultProps = {
+  country: "in", // changed from "us" to "in" for India news
+  pageSize: 6,
+  category: "general",
+};
+
+News.propTypes = {
+  country: PropTypes.string,
+  pageSize: PropTypes.number,
+  category: PropTypes.string,
+  searchQuery: PropTypes.string,
+  setProgress: PropTypes.func.isRequired,
+};
 
 export default News;
